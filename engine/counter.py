@@ -19,7 +19,7 @@ import fitz
 from .legend import parse_legend
 from .geometry import extract_regions, visible_areas_by_color, visible_region_geoms
 from .grid import count_pieces
-from .drawn_grid import count_pieces_drawn
+from .drawn_grid import count_pieces_drawn, count_pieces_multicolor
 
 PERDA_PADRAO = 0.05  # 5%
 
@@ -141,15 +141,15 @@ def analyze_page(page, perda=PERDA_PADRAO):
         # Lê a GRADE REALMENTE DESENHADA (resolve junta amarrada e reaproveitamento
         # de sobra) — confiável em região de UM piso só. Multi-cor ou detecção
         # duvidosa caem para a grade geométrica.
-        drawn = None
+        px = scale_pt_per_m * tile[0]
+        py = scale_pt_per_m * tile[1]
         if len(geoms_pieces) == 1:
+            # 1 piso só: lê a grade desenhada (mais preciso); senão, grade geométrica
             drawn = count_pieces_drawn(page, geoms_pieces, scale_pt_per_m, tile)
-        if drawn:
-            piece_counts.update(drawn)
+            piece_counts.update(drawn or count_pieces(geoms_pieces, px, py))
         else:
-            px = scale_pt_per_m * tile[0]
-            py = scale_pt_per_m * tile[1]
-            piece_counts.update(count_pieces(geoms_pieces, px, py))
+            # multi-cor: cada cor conta toda célula que toca + reaproveita sobra
+            piece_counts.update(count_pieces_multicolor(geoms_pieces, px, py))
 
     # peças em desenho multi-cor têm contagem de recorte menos confiável (ver análise)
     multi_piso_pecas = any(len(g) > 1 for g in by_tile.values())

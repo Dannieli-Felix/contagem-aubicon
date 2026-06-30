@@ -16,6 +16,9 @@ import fitz
 from shapely.geometry import box
 from shapely.ops import unary_union
 
+WHOLE_MIN = 0.985   # cobertura >= isto -> peça inteira
+CUT_MIN = 0.06      # cobertura entre CUT_MIN e WHOLE_MIN -> recorte
+
 
 def _lines(prof, pitch, rel=0.20, sep=0.45):
     """Posições (px) das linhas claras (juntas) num perfil de brilho, espaçadas ~pitch."""
@@ -57,6 +60,56 @@ def pair_recortes(fracs):
                 used[j] = True
                 break
     return placas
+
+
+def count_pieces_multicolor(geoms_by_color, pitch_x, pitch_y=None, search_steps=10):
+    """
+    Contagem peça-por-peça para desenho MULTI-COR (vários pisos no mesmo desenho).
+
+    Modelo físico: cada cor conta TODA célula que ela toca (uma placa cortada
+    pode pertencer a 2 cores numa fronteira). Os recortes são então emparelhados
+    (1 placa cobre 2 recortes complementares) — o reaproveitamento de sobra que a
+    equipe Aubicon usa. A grade é alinhada minimizando o total de recortes.
+    """
+    import numpy as np
+    if pitch_y is None:
+        pitch_y = pitch_x
+    geoms = geoms_by_color
+    union = unary_union(list(geoms.values()))
+    minx, miny, maxx, maxy = union.bounds
+    ca = pitch_x * pitch_y
+
+    def at(ox, oy):
+        res = {c: {"i": 0, "fr": []} for c in geoms}
+        i0 = int(np.floor((minx - ox) / pitch_x)) - 1
+        i1 = int(np.ceil((maxx - ox) / pitch_x)) + 1
+        j0 = int(np.floor((miny - oy) / pitch_y)) - 1
+        j1 = int(np.ceil((maxy - oy) / pitch_y)) + 1
+        for j in range(j0, j1 + 1):
+            for i in range(i0, i1 + 1):
+                cell = box(ox + i * pitch_x, oy + j * pitch_y,
+                           ox + (i + 1) * pitch_x, oy + (j + 1) * pitch_y)
+                if not cell.intersects(union):
+                    continue
+                for c, g in geoms.items():
+                    f = cell.intersection(g).area / ca
+                    if f < CUT_MIN:
+                        continue
+                    if f >= WHOLE_MIN:
+                        res[c]["i"] += 1
+                    else:
+                        res[c]["fr"].append(min(f, 0.999))
+        return res
+
+    best = None
+    for ox in np.linspace(minx, minx + pitch_x, search_steps, endpoint=False):
+        for oy in np.linspace(miny, miny + pitch_y, search_steps, endpoint=False):
+            r = at(ox, oy)
+            cut = sum(len(v["fr"]) for v in r.values())
+            if best is None or cut < best[0]:
+                best = (cut, r)
+    return {c: {"inteiras": v["i"], "recortes": pair_recortes(v["fr"])}
+            for c, v in best[1].items()}
 
 
 def count_pieces_drawn(page, region_geoms_by_color, scale_pt_per_m,

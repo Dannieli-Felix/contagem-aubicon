@@ -36,6 +36,7 @@ class PisoResult:
     metragem: int               # quantidade final a comprar (m² ou nº de placas)
     unidade: str                # "m²" | "placas"
     swatch_color: tuple | None = None
+    confianca: str = "alta"     # "alta" (área/exato) | "media" (peças simples) | "verificar" (peças complexas)
 
 
 @dataclass
@@ -150,6 +151,9 @@ def analyze_page(page, perda=PERDA_PADRAO):
             py = scale_pt_per_m * tile[1]
             piece_counts.update(count_pieces(geoms_pieces, px, py))
 
+    # peças em desenho multi-cor têm contagem de recorte menos confiável (ver análise)
+    multi_piso_pecas = any(len(g) > 1 for g in by_tile.values())
+
     pisos = []
     avisos = []
     for e in entries:
@@ -162,13 +166,14 @@ def analyze_page(page, perda=PERDA_PADRAO):
         if e.metodo == "area":
             metragem = math.ceil(area_m2 - 1e-6)
             pisos.append(PisoResult(e.codigo, e.nome, e.produto, "area", area_m2,
-                                    None, None, metragem, "m²", col))
+                                    None, None, metragem, "m²", col, confianca="alta"))
         else:
             pc = piece_counts.get(col, {"inteiras": 0, "recortes": 0})
             total_pc = pc["inteiras"] + pc["recortes"]
             metragem = _round_perda(total_pc, perda)
+            conf = "verificar" if multi_piso_pecas else "media"
             pisos.append(PisoResult(e.codigo, e.nome, e.produto, "pecas", area_m2,
-                                    pc["inteiras"], pc["recortes"], metragem, "placas", col))
+                                    pc["inteiras"], pc["recortes"], metragem, "placas", col, confianca=conf))
     return entries, total_m2, pisos, avisos
 
 

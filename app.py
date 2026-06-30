@@ -6,6 +6,7 @@ Rodar:  streamlit run app.py
 import os
 import tempfile
 
+import pandas as pd
 import streamlit as st
 
 from engine.counter import analyze_pdf
@@ -157,6 +158,9 @@ table.res tbody tr:hover td { background:__ROWHOVER__; }
 .badge { display:inline-block; padding:4px 12px; border-radius:999px; font-size:.78rem; font-weight:600; }
 .badge.pe { background:__PE_BG__; color:__PE_TX__; }
 .badge.ar { background:__AR_BG__; color:__AR_TX__; }
+.badge.alta { background:rgba(60,165,27,.16); color:#3CA51B; }
+.badge.media { background:rgba(225,178,30,.20); color:#C9971A; }
+.badge.verif { background:rgba(232,120,40,.20); color:#E07A28; }
 .qtd { font-weight:800; color:__ACCENT__; font-size:1.1rem; }
 .qtd small { font-weight:600; color:__MUTED__; font-size:.8rem; }
 .subnote { color:__MUTED__; font-size:.8rem; }
@@ -191,6 +195,18 @@ table.res tbody tr:hover td { background:__ROWHOVER__; }
 [data-testid="stFileUploaderFile"] { color:__ONBG__; background:transparent !important; }
 [data-testid="stFileUploaderFile"] small { color:__ONBG_MUTED__; }
 [data-testid="stFileUploaderFileName"] { color:__ONBG__ !important; }
+
+/* ---- tabela editável (data_editor / glide-grid) segue o tema ---- */
+[data-testid="stDataFrame"], [data-testid="stDataFrameResizable"], [data-testid="stDataEditor"],
+[data-testid="stDataEditorResizable"], [class*="glideDataEditor"] {
+  --gdg-bg-cell:__CARD__; --gdg-bg-cell-medium:__TBLHEAD__;
+  --gdg-text-dark:__INK__; --gdg-text-medium:__MUTED__; --gdg-text-light:__MUTED__;
+  --gdg-bg-header:__TBLHEAD__; --gdg-bg-header-hovered:__TBLHEAD__; --gdg-bg-header-has-focus:__TBLHEAD__;
+  --gdg-text-header:__MUTED__; --gdg-text-header-selected:__INK__;
+  --gdg-border-color:__BORDER__; --gdg-horizontal-border-color:__ROWBORDER__;
+  --gdg-accent-color:__NAVY__; --gdg-accent-fg:#FFFFFF; --gdg-accent-light:__ROWHOVER__;
+  --gdg-bg-bubble:__CARD__; --gdg-bg-search-result:__ROWHOVER__; --gdg-cell-horizontal-padding:12px;
+  --gdg-font-family:'Inter',sans-serif; border:1px solid __BORDER__; border-radius:14px; overflow:hidden; }
 
 /* ---- abas (estilo "segmented control") ---- */
 .stTabs [data-baseweb="tab-list"] { gap:6px; border-bottom:none !important; background:__TAB_TRACK__;
@@ -286,66 +302,87 @@ try:
 
     # ---- cabeçalho da obra + métricas ----
     html(f'<div class="h-obra">Obra: {obra}</div>'
-         f'<div class="muted">{len(result.pisos)} piso(s) identificado(s) no projeto</div>')
-    st.write("")
-
-    # cartões: mostra só os que fazem sentido pro projeto (sem caixa vazia "—")
-    cards = [("Pisos no projeto", f'{len(result.pisos)}')]
-    if tot_pc:
-        cards.append(("Total de peças", f'{tot_pc} <small>placas</small>'))
-    if tot_m2:
-        cards.append(("Total em m²", f'{tot_m2} <small>m²</small>'))
-    mcols = st.columns(len(cards))
-    for col, (lbl, val) in zip(mcols, cards):
-        with col:
-            html(f'<div class="mcard"><div class="lbl">{lbl}</div><div class="val">{val}</div></div>')
+         f'<div class="muted">{len(result.pisos)} piso(s) identificado(s) · '
+         'confira e ajuste a coluna “Comprar” se precisar — os totais recalculam.</div>')
     st.write("")
 
     tab_res, tab_conf = st.tabs(["📋  Resultado", "🔍  Conferência"])
 
-    # ---- aba Resultado ----
+    # ---- aba Resultado (tabela + ajuste manual da quantidade) ----
     with tab_res:
+        CONF = {"alta": ("alta", "✅ Alta"), "media": ("media", "🟡 Média"),
+                "verificar": ("verif", "🟠 Conferir")}
+        base = os.path.splitext(uploaded.name)[0]
+        # valor a comprar de cada piso (pode ter sido ajustado pelo usuário)
+        for i, p in enumerate(result.pisos):
+            st.session_state.setdefault(f"qtd_{base}_{i}", int(p.metragem))
+        def comprar(i):
+            return int(st.session_state.get(f"qtd_{base}_{i}", int(result.pisos[i].metragem)))
+
         rows = ""
-        for p in result.pisos:
+        for i, p in enumerate(result.pisos):
             if p.metodo == "pecas":
                 metodo = '<span class="badge pe">Peça por peça</span>'
-                pecas = f'{(p.pecas_inteiras or 0)} inteiras&nbsp;·&nbsp;{(p.pecas_recortes or 0)} recortes'
+                det = f'{(p.pecas_inteiras or 0)} inteiras&nbsp;·&nbsp;{(p.pecas_recortes or 0)} recortes'
             else:
                 metodo = '<span class="badge ar">Por área</span>'
-                pecas = '<span class="subnote">medido por m²</span>'
-            qtd = f'{p.metragem} <small>{p.unidade}</small>'
+                det = '<span class="subnote">medido por m²</span>'
+            ccls, ctxt = CONF.get(p.confianca, ("media", p.confianca))
+            qtd = f'{comprar(i)} <small>{p.unidade}</small>'
             rows += (f'<tr><td><div class="pname">{chip(p.swatch_color)}{p.nome}</div></td>'
                      f'<td>{metodo}</td>'
                      f'<td class="r">{p.area_m2:.2f} m²</td>'
-                     f'<td>{pecas}</td>'
+                     f'<td>{det}</td>'
+                     f'<td><span class="badge {ccls}">{ctxt}</span></td>'
                      f'<td class="r"><span class="qtd">{qtd}</span></td></tr>')
         html(f"""
         <div class="tbl-wrap">
         <table class="res">
         <thead><tr>
-        <th>Piso</th><th>Método de cálculo</th><th class="r">Área medida</th>
-        <th>Detalhe</th><th class="r">Total de peças</th>
+        <th>Piso</th><th>Método</th><th class="r">Área medida</th>
+        <th>Detalhe</th><th>Confiança</th><th class="r">Comprar</th>
         </tr></thead>
         <tbody>{rows}</tbody>
         </table>
         </div>
         """)
 
+        # totais (refletem ajustes)
+        tot_pc = sum(comprar(i) for i, p in enumerate(result.pisos) if p.unidade == "placas")
+        tot_m2 = sum(comprar(i) for i, p in enumerate(result.pisos) if p.unidade == "m²")
+        st.write("")
+        mc = st.columns(3)
+        mc[0].metric("Pisos no projeto", len(result.pisos))
+        if tot_pc:
+            mc[1].metric("Total de peças", f"{tot_pc} placas")
+        if tot_m2:
+            mc[2].metric("Total em m²", f"{tot_m2} m²")
+
+        html('<div class="muted" style="margin-top:8px;">'
+             '✅ Alta = exato (área / peça simples) · 🟡 Média = peça simples · '
+             '🟠 Conferir = desenho complexo — vale conferir o recorte no desenho.</div>')
+
+        with st.expander("✏️  Ajustar quantidades (opcional)"):
+            st.caption("Edite a quantidade a comprar de qualquer piso — os totais e o CSV atualizam na hora.")
+            ecols = st.columns(min(len(result.pisos), 3) or 1)
+            for i, p in enumerate(result.pisos):
+                with ecols[i % len(ecols)]:
+                    st.number_input(f"{p.nome} ({p.unidade})", min_value=0, step=1,
+                                    key=f"qtd_{base}_{i}")
+
         if result.avisos:
-            st.write("")
             for a in result.avisos:
                 st.warning(a)
 
-        st.write("")
-        csv = "piso,produto,metodo,area_m2,pecas_inteiras,pecas_recortes,total,unidade\n"
-        for p in result.pisos:
-            csv += (f'"{p.nome}","{p.produto}",{p.metodo},{p.area_m2:.3f},'
+        csv = "piso,metodo,area_m2,inteiras,recortes,comprar,unidade,confianca\n"
+        for i, p in enumerate(result.pisos):
+            csv += (f'"{p.nome}",{p.metodo},{p.area_m2:.3f},'
                     f'{p.pecas_inteiras if p.pecas_inteiras is not None else ""},'
                     f'{p.pecas_recortes if p.pecas_recortes is not None else ""},'
-                    f'{p.metragem},{p.unidade}\n')
+                    f'{comprar(i)},{p.unidade},{p.confianca}\n')
+        st.write("")
         st.download_button("⬇  Exportar planilha (CSV)", csv,
-                           file_name=f"quantitativo_{os.path.splitext(uploaded.name)[0]}.csv",
-                           mime="text/csv")
+                           file_name=f"quantitativo_{base}.csv", mime="text/csv")
 
     # ---- aba Conferência (PDF amplo, horizontal) ----
     with tab_conf:

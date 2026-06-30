@@ -165,9 +165,12 @@ table.res tbody tr:hover td { background:__ROWHOVER__; }
 /* ---- área de upload (card centralizado; texto interno escondido) ---- */
 [data-testid="stFileUploader"] > section { display:flex; justify-content:center; }
 [data-testid="stFileUploaderDropzone"] { background:__CARD__; border:1.5px dashed __DASH__;
-  border-radius:16px; padding:22px 28px; transition:.15s; gap:14px; flex-wrap:wrap;
-  justify-content:center !important; align-items:center;
+  border-radius:16px; padding:22px 28px; transition:.15s; gap:0;
+  display:flex !important; justify-content:center !important; align-items:center;
   max-width:640px; width:100%; margin:0 auto; }
+/* o <input> invisível sai do fluxo pra não desalinhar o botão */
+[data-testid="stFileUploaderDropzoneInput"] { position:absolute !important; width:1px !important;
+  height:1px !important; opacity:0 !important; }
 [data-testid="stFileUploaderDropzone"]:hover { border-color:__UPBORDER_HOVER__; background:__ROWHOVER__; }
 [data-testid="stFileUploaderDropzoneInstructions"] { display:none !important; }
 /* SÓ o botão de procurar arquivo vira "Carregar PDF" (NÃO o X de remover) */

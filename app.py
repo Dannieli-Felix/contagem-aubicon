@@ -11,6 +11,53 @@ import streamlit as st
 
 from engine.counter import analyze_pdf
 from engine.preview import render_page_png, first_legend_page
+from engine.overlay import render_overlay
+
+
+@st.cache_data(show_spinner=False)
+def _analisar(pdf_bytes, perda):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
+        t.write(pdf_bytes)
+        p = t.name
+    try:
+        return analyze_pdf(p, perda=perda)
+    finally:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+
+
+@st.cache_data(show_spinner=False)
+def _img_conferencia(pdf_bytes, com_regioes):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
+        t.write(pdf_bytes)
+        p = t.name
+    try:
+        png = render_overlay(p, dpi=180) if com_regioes else None
+        if png is None:
+            png = render_page_png(p, first_legend_page(p), dpi=190)
+        return png
+    finally:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
+
+
+@st.cache_data(show_spinner=False)
+def _diagnostico(pdf_bytes):
+    from engine.counter import diagnose
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
+        t.write(pdf_bytes)
+        p = t.name
+    try:
+        return diagnose(p)
+    finally:
+        try:
+            os.unlink(p)
+        except OSError:
+            pass
 
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -279,21 +326,18 @@ if uploaded is None:
     st.stop()
 
 # ----------------------------------------------------------------------------
-# Processamento
-with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-    tmp.write(uploaded.getvalue())
-    pdf_path = tmp.name
+# Processamento (com cache por arquivo → edições/abas ficam instantâneas)
+pdf_bytes = uploaded.getvalue()
 
-try:
+if True:
     with st.spinner("Analisando o projeto…"):
-        result = analyze_pdf(pdf_path, perda=PERDA_PADRAO)
+        result = _analisar(pdf_bytes, PERDA_PADRAO)
 
     if not result.pisos:
         st.error("Não foi possível identificar a legenda de pisos ou as regiões deste PDF. "
                  "Confirme que é um PDF de paginação vetorial com a tabela “Legenda de Pisos”.")
         with st.expander("🔧 Detalhes técnicos (para diagnóstico)"):
-            from engine.counter import diagnose
-            st.json(diagnose(pdf_path))
+            st.json(_diagnostico(pdf_bytes))
         st.stop()
 
     obra = result.obra or os.path.splitext(uploaded.name)[0]
@@ -384,17 +428,16 @@ try:
         st.download_button("⬇  Exportar planilha (CSV)", csv,
                            file_name=f"quantitativo_{base}.csv", mime="text/csv")
 
-    # ---- aba Conferência (PDF amplo, horizontal) ----
+    # ---- aba Conferência (regiões detectadas sobre o desenho) ----
     with tab_conf:
-        html('<div class="muted" style="margin-bottom:10px;">'
-             'Confira se as cores e regiões detectadas correspondem ao desenho do projeto.</div>')
-        try:
-            idx = first_legend_page(pdf_path)
-            st.image(render_page_png(pdf_path, idx, dpi=190), use_container_width=True)
-        except Exception:
-            st.info("Pré-visualização indisponível para este arquivo.")
-finally:
-    try:
-        os.unlink(pdf_path)
-    except OSError:
-        pass
+        html('<div class="muted" style="margin-bottom:8px;">'
+             'O sistema contornou e nomeou as regiões que detectou. '
+             'Confira se cada cor/área corresponde ao desenho do projeto — '
+             'principalmente as linhas marcadas 🟠 Conferir.</div>')
+        mostrar = st.toggle("Destacar regiões detectadas", value=True, key="overlay_on")
+        with st.spinner("Gerando conferência…"):
+            try:
+                png = _img_conferencia(pdf_bytes, mostrar)
+                st.image(png, use_container_width=True)
+            except Exception:
+                st.info("Pré-visualização indisponível para este arquivo.")

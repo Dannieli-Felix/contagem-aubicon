@@ -19,6 +19,7 @@ import fitz
 from .legend import parse_legend
 from .geometry import extract_regions, visible_areas_by_color, visible_region_geoms
 from .grid import count_pieces
+from .drawn_grid import count_pieces_drawn
 
 PERDA_PADRAO = 0.05  # 5%
 
@@ -136,9 +137,18 @@ def analyze_page(page, perda=PERDA_PADRAO):
         tile = e.tile_size_m or (1.0, 1.0)
         by_tile.setdefault(tile, {})[region_color[e.codigo]] = vis_geom[region_color[e.codigo]]
     for tile, geoms_pieces in by_tile.items():
-        px = scale_pt_per_m * tile[0]
-        py = scale_pt_per_m * tile[1]
-        piece_counts.update(count_pieces(geoms_pieces, px, py))
+        # Lê a GRADE REALMENTE DESENHADA (resolve junta amarrada e reaproveitamento
+        # de sobra) — confiável em região de UM piso só. Multi-cor ou detecção
+        # duvidosa caem para a grade geométrica.
+        drawn = None
+        if len(geoms_pieces) == 1:
+            drawn = count_pieces_drawn(page, geoms_pieces, scale_pt_per_m, tile)
+        if drawn:
+            piece_counts.update(drawn)
+        else:
+            px = scale_pt_per_m * tile[0]
+            py = scale_pt_per_m * tile[1]
+            piece_counts.update(count_pieces(geoms_pieces, px, py))
 
     pisos = []
     avisos = []

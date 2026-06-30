@@ -162,9 +162,12 @@ table.res tbody tr:hover td { background:__ROWHOVER__; }
 .subnote { color:__MUTED__; font-size:.8rem; }
 .introhint { text-align:center; color:__ONBG_MUTED__; margin-top:22px; font-size:.92rem; font-weight:500; }
 
-/* ---- área de upload (texto interno escondido; legenda própria acima) ---- */
+/* ---- área de upload (card centralizado; texto interno escondido) ---- */
+[data-testid="stFileUploader"] > section { display:flex; justify-content:center; }
 [data-testid="stFileUploaderDropzone"] { background:__CARD__; border:1.5px dashed __DASH__;
-  border-radius:16px; padding:24px 32px; transition:.15s; justify-content:center; gap:14px; flex-wrap:wrap; }
+  border-radius:16px; padding:22px 28px; transition:.15s; gap:14px; flex-wrap:wrap;
+  justify-content:center !important; align-items:center;
+  max-width:640px; width:100%; margin:0 auto; }
 [data-testid="stFileUploaderDropzone"]:hover { border-color:__UPBORDER_HOVER__; background:__ROWHOVER__; }
 [data-testid="stFileUploaderDropzoneInstructions"] { display:none !important; }
 /* SÓ o botão de procurar arquivo vira "Carregar PDF" (NÃO o X de remover) */

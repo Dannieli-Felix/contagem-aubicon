@@ -248,6 +248,9 @@ try:
     if not result.pisos:
         st.error("Não foi possível identificar a legenda de pisos ou as regiões deste PDF. "
                  "Confirme que é um PDF de paginação vetorial com a tabela “Legenda de Pisos”.")
+        with st.expander("🔧 Detalhes técnicos (para diagnóstico)"):
+            from engine.counter import diagnose
+            st.json(diagnose(pdf_path))
         st.stop()
 
     obra = result.obra or os.path.splitext(uploaded.name)[0]

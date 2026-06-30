@@ -178,3 +178,50 @@ def analyze_pdf(path, perda=PERDA_PADRAO):
     import os
     return ProjetoResult(arquivo=os.path.basename(path), obra=obra,
                          pisos=all_pisos, avisos=avisos)
+
+
+def diagnose(path):
+    """Diagnóstico para entender por que um PDF não foi reconhecido (uso na interface)."""
+    import shapely
+    try:
+        ver_mupdf = fitz.VersionBind
+    except Exception:
+        ver_mupdf = str(getattr(fitz, "version", "?"))
+    info = {"pymupdf": ver_mupdf, "shapely": shapely.__version__, "paginas": []}
+    try:
+        doc = fitz.open(path)
+    except Exception as e:
+        info["erro_abrir"] = repr(e)
+        return info
+    info["num_paginas"] = doc.page_count
+    for i in range(doc.page_count):
+        page = doc[i]
+        p = {"pagina": i}
+        try:
+            txt = page.get_text("text")
+            p["tem_texto_LEGENDA"] = "LEGENDADEPISOS" in txt.upper().replace(" ", "").replace("\n", "")
+            p["chars_texto"] = len(txt.strip())
+            p["vetor_paths"] = len(page.get_drawings())
+            try:
+                ext = page.get_drawings(extended=True)
+                p["paths_extended"] = len(ext)
+                p["tem_clip"] = any(d.get("type") == "clip" for d in ext)
+            except Exception as e:
+                p["erro_extended"] = repr(e)
+            entries, total = parse_legend(page)
+            p["legenda_total_m2"] = total
+            p["pisos_legenda"] = len(entries)
+            p["nomes"] = [e.nome for e in entries][:8]
+            p["metodos"] = [e.metodo for e in entries][:8]
+            p["swatches"] = [e.swatch_color for e in entries][:8]
+            big = _big_fill_colors(page)
+            p["cores_grandes"] = len(big)
+            rc = _match_swatches_to_regions(entries, big) if entries else {}
+            p["regioes_casadas"] = len(rc)
+            regs = extract_regions(page, set(rc.values())) if rc else []
+            p["regioes_extraidas"] = len(regs)
+        except Exception as e:
+            p["erro"] = repr(e)
+        info["paginas"].append(p)
+    doc.close()
+    return info

@@ -95,6 +95,10 @@ html(_style("""
 #MainMenu, header[data-testid="stHeader"], footer,
 [data-testid="stToolbar"], [data-testid="stDecoration"],
 [data-testid="stStatusWidget"], .stDeployButton, [data-testid="stSidebarCollapsedControl"] { display:none !important; }
+/* ---- esconder o selo/avatar do Streamlit Cloud (canto inferior direito) ---- */
+[class*="viewerBadge"], [class*="_viewerBadge"], [class*="_profileContainer"],
+[data-testid="stAppDeployButton"], [data-testid="manage-app-button"], .stAppDeployButton,
+a[href*="streamlit.io/cloud"], a[href*="share.streamlit.io"], a[href*="streamlit.io"][class*="badge"] { display:none !important; visibility:hidden !important; }
 
 /* ---- base ---- */
 html, body, [class*="css"], .stApp { font-family:'Inter',-apple-system,sans-serif; }

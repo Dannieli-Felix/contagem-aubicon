@@ -45,6 +45,8 @@ LIGHT = {
     "__BAR_SHADOW__": "rgba(1,43,94,.22)",
     # acento da área de upload (botão + borda no hover): MARINHO no claro
     "__UPBTN__": NAVY, "__UPBTN_HOVER__": NAVY2, "__UPBORDER_HOVER__": NAVY, "__UPBTN_TX__": "#FFFFFF",
+    # aba ativa (segmented control)
+    "__TAB_ACTIVE_BG__": NAVY, "__TAB_ACTIVE_TX__": "#FFFFFF", "__TAB_TRACK__": "#FFFFFF",
 }
 DARK = {
     "__BG__": "#1B2330", "__CARD__": "#232E3D", "__INK__": "#EAF0F7",
@@ -61,6 +63,8 @@ DARK = {
     "__BAR_SHADOW__": "rgba(0,0,0,.30)",
     # acento da área de upload (botão + borda no hover): VERDE DA BARRA (#98B60A) no escuro
     "__UPBTN__": "#98B60A", "__UPBTN_HOVER__": "#8CA80A", "__UPBORDER_HOVER__": "#98B60A", "__UPBTN_TX__": "#16320A",
+    # aba ativa (segmented control): verde da marca no escuro
+    "__TAB_ACTIVE_BG__": "#98B60A", "__TAB_ACTIVE_TX__": "#16320A", "__TAB_TRACK__": "#2A3647",
 }
 
 
@@ -160,25 +164,38 @@ table.res tbody tr:hover td { background:__ROWHOVER__; }
 
 /* ---- área de upload (texto interno escondido; legenda própria acima) ---- */
 [data-testid="stFileUploaderDropzone"] { background:__CARD__; border:1.5px dashed __DASH__;
-  border-radius:16px; padding:24px 32px; transition:.15s; justify-content:center; gap:0; }
+  border-radius:16px; padding:24px 32px; transition:.15s; justify-content:center; gap:14px; flex-wrap:wrap; }
 [data-testid="stFileUploaderDropzone"]:hover { border-color:__UPBORDER_HOVER__; background:__ROWHOVER__; }
 [data-testid="stFileUploaderDropzoneInstructions"] { display:none !important; }
-[data-testid="stFileUploaderDropzone"] button { color:transparent !important; position:relative;
-  background:__UPBTN__ !important; border:none !important; border-radius:10px !important;
-  min-width:175px; height:46px; box-shadow:none !important; }
-[data-testid="stFileUploaderDropzone"] button:hover { background:__UPBTN_HOVER__ !important; border:none !important; }
-[data-testid="stFileUploaderDropzone"] button::after { content:"📄  Carregar PDF"; color:__UPBTN_TX__;
-  font-weight:700; font-size:.98rem; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+/* SÓ o botão de procurar arquivo vira "Carregar PDF" (NÃO o X de remover) */
+[data-testid="stFileUploaderDropzone"] button:not([data-testid="stFileUploaderDeleteBtn"]) {
+  color:transparent !important; position:relative; background:__UPBTN__ !important;
+  border:none !important; border-radius:10px !important; min-width:175px; height:46px; box-shadow:none !important; }
+[data-testid="stFileUploaderDropzone"] button:not([data-testid="stFileUploaderDeleteBtn"]):hover { background:__UPBTN_HOVER__ !important; }
+[data-testid="stFileUploaderDropzone"] button:not([data-testid="stFileUploaderDeleteBtn"])::after {
+  content:"📄  Carregar PDF"; color:__UPBTN_TX__; font-weight:700; font-size:.98rem;
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+/* botão de remover (X): discreto, nunca verde, nunca relabel */
+[data-testid="stFileUploaderDeleteBtn"], [data-testid="stFileUploaderDeleteBtn"] button {
+  background:transparent !important; min-width:auto !important; height:auto !important; }
+[data-testid="stFileUploaderDeleteBtn"] button::after { content:none !important; }
+[data-testid="stFileUploaderDeleteBtn"] svg { fill:__ONBG_MUTED__ !important; }
 .uphint { text-align:center; color:__ONBG__; font-weight:700; font-size:.98rem; margin:2px 0 10px; }
 .uphint small { display:block; color:__ONBG_MUTED__; font-weight:500; font-size:.82rem; margin-top:3px; }
-[data-testid="stFileUploaderFile"] { color:__ONBG__; }
+[data-testid="stFileUploaderFile"] { color:__ONBG__; background:transparent !important; }
 [data-testid="stFileUploaderFile"] small { color:__ONBG_MUTED__; }
+[data-testid="stFileUploaderFileName"] { color:__ONBG__ !important; }
 
-/* ---- abas ---- */
-.stTabs [data-baseweb="tab-list"] { gap:6px; border-bottom:1px solid __BORDER__; }
-.stTabs [data-baseweb="tab"] { font-weight:700; color:__ONBG_MUTED__; padding:8px 16px; }
-.stTabs [aria-selected="true"] { color:__ONBG__; }
-.stTabs [data-baseweb="tab-highlight"] { background:__NAVY__ !important; }
+/* ---- abas (estilo "segmented control") ---- */
+.stTabs [data-baseweb="tab-list"] { gap:6px; border-bottom:none !important; background:__TAB_TRACK__;
+  border:1px solid __BORDER__; border-radius:12px; padding:6px; display:inline-flex; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+.stTabs [data-baseweb="tab"] { font-weight:700; color:__ONBG_MUTED__; padding:9px 22px; border-radius:8px;
+  transition:.15s; background:transparent; }
+.stTabs [data-baseweb="tab"]:hover { color:__ONBG__; background:__ROWHOVER__; }
+.stTabs [aria-selected="true"] { background:__TAB_ACTIVE_BG__ !important; color:__TAB_ACTIVE_TX__ !important; }
+.stTabs [data-baseweb="tab"] p { font-size:.95rem !important; font-weight:700 !important; }
+.stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display:none !important; }
+.stTabs [data-baseweb="tab-panel"] { padding-top:18px; }
 
 /* ---- botão de download ---- */
 .stDownloadButton button { border:1px solid __BORDER__ !important; background:__CARD__ !important;
@@ -266,15 +283,16 @@ try:
          f'<div class="muted">{len(result.pisos)} piso(s) identificado(s) no projeto</div>')
     st.write("")
 
-    mcols = st.columns(3)
-    with mcols[0]:
-        html(f'<div class="mcard"><div class="lbl">Pisos no projeto</div><div class="val">{len(result.pisos)}</div></div>')
-    with mcols[1]:
-        v = f'{tot_pc} <small>placas</small>' if tot_pc else '—'
-        html(f'<div class="mcard"><div class="lbl">Total de peças</div><div class="val">{v}</div></div>')
-    with mcols[2]:
-        v = f'{tot_m2} <small>m²</small>' if tot_m2 else '—'
-        html(f'<div class="mcard"><div class="lbl">Total por área</div><div class="val">{v}</div></div>')
+    # cartões: mostra só os que fazem sentido pro projeto (sem caixa vazia "—")
+    cards = [("Pisos no projeto", f'{len(result.pisos)}')]
+    if tot_pc:
+        cards.append(("Total de peças", f'{tot_pc} <small>placas</small>'))
+    if tot_m2:
+        cards.append(("Total em m²", f'{tot_m2} <small>m²</small>'))
+    mcols = st.columns(len(cards))
+    for col, (lbl, val) in zip(mcols, cards):
+        with col:
+            html(f'<div class="mcard"><div class="lbl">{lbl}</div><div class="val">{val}</div></div>')
     st.write("")
 
     tab_res, tab_conf = st.tabs(["📋  Resultado", "🔍  Conferência"])

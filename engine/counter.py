@@ -113,7 +113,17 @@ def analyze_page(page, perda=PERDA_PADRAO):
     total_pt2 = sum(vis_area.values())
     if total_pt2 <= 0:
         return None
-    scale_px2_per_m2 = total_pt2 / total_m2     # pt²/m²
+
+    # Escala (pt²/m²): calibra pela SOMA das áreas dos pisos na legenda — que são
+    # confiáveis e batem com o gabarito. Antes usava o "METRAGEM TOTAL" único, que
+    # em alguns PDFs é lido errado e jogava a escala (e as áreas) fora.
+    pairs = [(vis_area[region_color[e.codigo]], e.area_m2)
+             for e in entries
+             if e.codigo in region_color and region_color[e.codigo] in vis_area and e.area_m2]
+    if pairs and sum(a for _, a in pairs) > 0:
+        scale_px2_per_m2 = sum(pt for pt, _ in pairs) / sum(a for _, a in pairs)
+    else:
+        scale_px2_per_m2 = total_pt2 / total_m2
     scale_pt_per_m = scale_px2_per_m2 ** 0.5
 
     # contagem de peças — agrupada por tamanho de placa (suporta placas retangulares)
@@ -137,7 +147,8 @@ def analyze_page(page, perda=PERDA_PADRAO):
         if col is None or col not in vis_area:
             avisos.append(f"Piso [{e.codigo}] {e.nome}: região não localizada no desenho.")
             continue
-        area_m2 = vis_area[col] / scale_px2_per_m2
+        # área da linha: usa a da legenda (exata, igual ao gabarito) quando houver
+        area_m2 = e.area_m2 if e.area_m2 else vis_area[col] / scale_px2_per_m2
         if e.metodo == "area":
             metragem = math.ceil(area_m2 - 1e-6)
             pisos.append(PisoResult(e.codigo, e.nome, e.produto, "area", area_m2,

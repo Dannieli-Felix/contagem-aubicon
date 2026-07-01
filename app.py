@@ -14,8 +14,13 @@ from engine.preview import render_page_png, first_legend_page
 from engine.overlay import render_overlay
 
 
+# Versão do motor: faz parte da chave do cache. Trocar quando a estrutura do
+# resultado mudar, para o cache NUNCA servir um objeto antigo (incompatível).
+_CACHE_VER = "2026-06-30-c3"
+
+
 @st.cache_data(show_spinner=False)
-def _analisar(pdf_bytes, perda):
+def _analisar(pdf_bytes, perda, cache_ver=_CACHE_VER):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
         t.write(pdf_bytes)
         p = t.name
@@ -29,7 +34,7 @@ def _analisar(pdf_bytes, perda):
 
 
 @st.cache_data(show_spinner=False)
-def _img_conferencia(pdf_bytes, com_regioes):
+def _img_conferencia(pdf_bytes, com_regioes, cache_ver=_CACHE_VER):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
         t.write(pdf_bytes)
         p = t.name
@@ -46,7 +51,7 @@ def _img_conferencia(pdf_bytes, com_regioes):
 
 
 @st.cache_data(show_spinner=False)
-def _diagnostico(pdf_bytes):
+def _diagnostico(pdf_bytes, cache_ver=_CACHE_VER):
     from engine.counter import diagnose
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as t:
         t.write(pdf_bytes)
@@ -371,7 +376,8 @@ if True:
             else:
                 metodo = '<span class="badge ar">Por área</span>'
                 det = '<span class="subnote">medido por m²</span>'
-            ccls, ctxt = CONF.get(p.confianca, ("media", p.confianca))
+            conf = getattr(p, "confianca", "media")
+            ccls, ctxt = CONF.get(conf, ("media", conf))
             qtd = f'{comprar(i)} <small>{p.unidade}</small>'
             rows += (f'<tr><td><div class="pname">{chip(p.swatch_color)}{p.nome}</div></td>'
                      f'<td>{metodo}</td>'
@@ -423,7 +429,7 @@ if True:
             csv += (f'"{p.nome}",{p.metodo},{p.area_m2:.3f},'
                     f'{p.pecas_inteiras if p.pecas_inteiras is not None else ""},'
                     f'{p.pecas_recortes if p.pecas_recortes is not None else ""},'
-                    f'{comprar(i)},{p.unidade},{p.confianca}\n')
+                    f'{comprar(i)},{p.unidade},{getattr(p, "confianca", "media")}\n')
         st.write("")
         st.download_button("⬇  Exportar planilha (CSV)", csv,
                            file_name=f"quantitativo_{base}.csv", mime="text/csv")
